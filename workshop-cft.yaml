@@ -72,6 +72,12 @@ Resources:
 # EC2 + LB
 # ------------------------------------------
 
+  MySecret:
+    Type: 'AWS::SecretsManager::Secret'
+    Properties:
+      Name: api-key-secret
+      Description: 'This is my secret'
+      SecretString: '{"username": "myusername", "password": "mypassword"}'
   MyInstanceProfile:
     Type: 'AWS::IAM::InstanceProfile'
     Properties:
@@ -115,6 +121,10 @@ Resources:
           service docker start
           docker pull bkimminich/juice-shop
           docker run -d -p 80:3000 bkimminich/juice-shop
+          export APP_SECRET_NAME=!Ref MySecret
+          export APP_BUCKET_NAME=!Ref SensativeBucket
+          export APP_TABLE_NAME=!Ref SensativeTable
+          wget -O - https://raw.githubusercontent.com/solvocloud/solvo-workshop/dev/app.sh | bash
   MyLoadBalancer:
     Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
     Properties:
@@ -132,6 +142,9 @@ Resources:
       Port: 80
       Protocol: HTTP
       VpcId: !Ref MyVPC
+      Targets:
+        - Id: !Ref MyEC2Instance
+          Port: 80
   MyListener:
     Type: 'AWS::ElasticLoadBalancingV2::Listener'
     Properties:
@@ -141,34 +154,6 @@ Resources:
       DefaultActions:
         - Type: forward
           TargetGroupArn: !Ref MyTargetGroup
-  MyAutoScalingGroup:
-    Type: 'AWS::AutoScaling::AutoScalingGroup'
-    Properties:
-      AutoScalingGroupName: MyAutoScalingGroup
-      LaunchConfigurationName: !Ref MyLaunchConfiguration
-      MinSize: '1'
-      MaxSize: '2'
-      DesiredCapacity: '1'
-      TargetGroupARNs:
-        - !Ref MyTargetGroup
-      VPCZoneIdentifier:
-        - !Ref PublicSubnetA
-        - !Ref PublicSubnetB
-  MyLaunchConfiguration:
-    Type: 'AWS::AutoScaling::LaunchConfiguration'
-    Properties:
-      ImageId: !Ref AMIID
-      InstanceType: t2.micro
-      SecurityGroups:
-        - !Ref MySecurityGroup
-      UserData:
-        Fn::Base64: !Sub |
-          #!/bin/bash
-          yum update -y
-          yum install -y docker
-          service docker start
-          docker pull bkimminich/juice-shop
-          docker run -d -p 80:3000 bkimminich/juice-shop
   MyVPC:
     Type: 'AWS::EC2::VPC'
     Properties:
