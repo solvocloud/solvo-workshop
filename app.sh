@@ -1,10 +1,12 @@
 #!/bin/bash
 
+region="us-east-1"
+
 # Get the secret name from the first command line argument
 secret_name=$APP_SECRET_NAME
 
 # Use the AWS CLI to get the value of the secret
-secret_value=$(aws secretsmanager get-secret-value --secret-id $secret_name --query SecretString --output text)
+secret_value=$(aws secretsmanager get-secret-value --region $region --secret-id $secret_name --query SecretString --output text)
 
 echo "The value of $secret_name is: $secret_value"
 
@@ -24,6 +26,6 @@ key_name="id"
 key_value="123"
 
 # Use the AWS CLI to get the item from the DynamoDB table
-item=$(aws dynamodb get-item --table-name $table_name --key "{\"$key_name\":{\"S\":\"$key_value\"}}" --query Item)
+item=$(aws dynamodb get-item --region $region --table-name $table_name --key "{\"$key_name\":{\"S\":\"$key_value\"}}" --query Item)
 
 echo "The item with $key_name=$key_value in $table_name is: $item"
