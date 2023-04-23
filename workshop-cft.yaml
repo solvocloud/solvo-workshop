@@ -12,7 +12,7 @@ Parameters:
   AMIID:
     Description: The AMI ID of the EC2 instance
     Type: String
-    Default: 'ami-069aabeee6f53e7bf'
+    Default: 'ami-0fc61db8544a617ed'
 Globals:
   Function:
     Runtime: python3.8
@@ -116,15 +116,18 @@ Resources:
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
+          exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+          echo BEGIN
           yum update -y
           yum install -y docker
           service docker start
           docker pull bkimminich/juice-shop
           docker run -d -p 80:3000 bkimminich/juice-shop
-          export APP_SECRET_NAME=!Ref MySecret
-          export APP_BUCKET_NAME=!Ref SensativeBucket
-          export APP_TABLE_NAME=!Ref SensativeTable
+          export APP_SECRET_NAME=${MySecret}
+          export APP_BUCKET_NAME=${SensativeBucket}
+          export APP_TABLE_NAME=${SensativeTable}
           wget -O - https://raw.githubusercontent.com/solvocloud/solvo-workshop/dev/app.sh | bash
+          echo END
   MyLoadBalancer:
     Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
     Properties:
