@@ -106,7 +106,7 @@ Resources:
       ImageId: !Ref AMIID
       InstanceType: t2.micro
       SecurityGroupIds:
-        - !Ref MySecurityGroup
+        - !Ref AppServerSecurityGroup
       SubnetId: !Ref PublicSubnetA
       IamInstanceProfile: !Ref MyInstanceProfile
       Tags:
@@ -135,7 +135,7 @@ Resources:
         - !Ref PublicSubnetA
         - !Ref PublicSubnetB
       SecurityGroups:
-        - !Ref MySecurityGroup
+        - !Ref LbSecurityGroup
   MyTargetGroup:
     Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
     Properties:
@@ -182,10 +182,10 @@ Resources:
       CidrBlock: '10.0.2.0/24'
       AvailabilityZone: !Select [1, !GetAZs '']
       MapPublicIpOnLaunch: 'true'
-  MySecurityGroup:
+  LbSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
-      GroupName: MySecurityGroup
+      GroupName: LbSecurityGroup
       GroupDescription: Allow http and SSH to client host
       VpcId: !Ref MyVPC
       SecurityGroupIngress:
@@ -199,7 +199,25 @@ Resources:
           CidrIp: !Ref SSHLocation
       Tags:
         - Key: Name
-          Value: MySecurityGroup
+          Value: LbSecurityGroup
+  AppServerSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupName: AppServerSecurityGroup
+      GroupDescription: Allow http and SSH to client host
+      VpcId: !Ref MyVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref SSHLocation
+      Tags:
+        - Key: Name
+          Value: AppServerSecurityGroup
   MyPublicRouteTable:
     Type: 'AWS::EC2::RouteTable'
     Properties:
@@ -221,6 +239,41 @@ Resources:
       DestinationCidrBlock: '0.0.0.0/0'
       GatewayId: !Ref InternetGateway
       RouteTableId: !Ref MyPublicRouteTable
+
+  # --------------------------
+  # Users
+  # --------------------------
+  MyIAMUser1:
+      Type: 'AWS::IAM::User'
+      Properties:
+        UserName: jon.snow
+        Path: /
+        Tags:
+          - Key: Name
+            Value: jon.snow
+        ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/AWSLambda_FullAccess
+
+  MyIAMUser2:
+      Type: 'AWS::IAM::User'
+      Properties:
+        UserName: tyrion.lannister
+        Path: /
+        Tags:
+          - Key: Name
+            Value: tyrion.lannister
+        Policies:
+        - PolicyName: allow-assume-role
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sts:AssumeRole
+                Resource:
+                  - '*'
+
+
 Outputs:
   MyLoadBalancerDNSName:
     Value: !Join ['', ['http://', !GetAtt MyLoadBalancer.DNSName]]
